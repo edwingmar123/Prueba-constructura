@@ -44,6 +44,9 @@ export function Records({
   const [showStructure, setShowStructure] = useState(false);
   const [otFilter, setOtFilter] = useState("");
   const [estadoFilter, setEstadoFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [dateRangeFrom, setDateRangeFrom] = useState("");
+  const [dateRangeTo, setDateRangeTo] = useState("");
   const [columnWidths, setColumnWidths] = useState({});
   const [otReports, setOtReports] = useState({});
   const debouncedOtFilter = useDebouncedValue(otFilter);
@@ -61,9 +64,10 @@ export function Records({
     return records.filter((record) => {
       const matchesOt = !query || normalizeText(getRecordOt(record)).includes(query);
       const matchesStatus = !statusQuery || normalizeText(getRecordStatusForFilter(record)) === statusQuery;
-      return matchesOt && matchesStatus;
+      const matchesDate = filterRecordByDate(record, dateFilter, dateRangeFrom, dateRangeTo);
+      return matchesOt && matchesStatus && matchesDate;
     });
-  }, [records, deferredOtFilter, deferredEstadoFilter]);
+  }, [records, deferredOtFilter, deferredEstadoFilter, dateFilter, dateRangeFrom, dateRangeTo]);
   const headers = useMemo(() => tableRecords[0]?.headers || [], [tableRecords]);
   const totalPages = Math.max(1, Math.ceil(tableRecords.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -113,7 +117,7 @@ export function Records({
 
   useEffect(() => {
     setPage(1);
-  }, [filters, tableRecords.length, viewMode, otFilter, estadoFilter]);
+  }, [filters, tableRecords.length, viewMode, otFilter, estadoFilter, dateFilter, dateRangeFrom, dateRangeTo]);
 
   const selectRecord = useCallback((recordId) => {
     setSelectedRecordId(recordId);
@@ -225,6 +229,33 @@ export function Records({
           {estadoFilter && (
             <button type="button" onClick={() => setEstadoFilter("")}>
               Limpiar ESTADO
+            </button>
+          )}
+          <label className="ot-filter">
+            <span>Filtrar Fecha</span>
+            <select value={dateFilter} onChange={(event) => { setDateFilter(event.target.value); setDateRangeFrom(""); setDateRangeTo(""); }}>
+              <option value="">Todas las fechas</option>
+              <option value="hoy">Hoy</option>
+              <option value="semana">Esta semana</option>
+              <option value="mes">Este mes</option>
+              <option value="rango">Rango personalizado</option>
+            </select>
+          </label>
+          {dateFilter === "rango" && (
+            <>
+              <label className="ot-filter">
+                <span>Desde</span>
+                <input type="date" value={dateRangeFrom} onChange={(event) => setDateRangeFrom(event.target.value)} />
+              </label>
+              <label className="ot-filter">
+                <span>Hasta</span>
+                <input type="date" value={dateRangeTo} onChange={(event) => setDateRangeTo(event.target.value)} />
+              </label>
+            </>
+          )}
+          {dateFilter && (
+            <button type="button" onClick={() => { setDateFilter(""); setDateRangeFrom(""); setDateRangeTo(""); }}>
+              Limpiar Fecha
             </button>
           )}
         </div>
@@ -1389,6 +1420,61 @@ function getRecordOt(record) {
 
 function getRecordStatusForFilter(record) {
   return String(getCell(record, ["ESTADO"]) || record.normalized?.status || "").trim();
+}
+
+function getRecordDate(record) {
+  return String(getCell(record, [], ["marca temporal", "fecha"]) || "").trim();
+}
+
+function parseRecordDate(rawDate) {
+  if (!rawDate) return null;
+  const direct = new Date(rawDate);
+  if (!isNaN(direct.getTime())) return direct;
+  const ddmmyyyy = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (ddmmyyyy) {
+    const parsed = new Date(`${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, "0")}-${ddmmyyyy[1].padStart(2, "0")}`);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
+}
+
+function filterRecordByDate(record, dateFilter, dateRangeFrom, dateRangeTo) {
+  if (!dateFilter) return true;
+  const recordDate = parseRecordDate(getRecordDate(record));
+  if (!recordDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (dateFilter === "hoy") {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return recordDate >= today && recordDate < tomorrow;
+  }
+  if (dateFilter === "semana") {
+    const startOfWeek = new Date(today);
+    const day = today.getDay();
+    startOfWeek.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+    return recordDate >= startOfWeek && recordDate < endOfWeek;
+  }
+  if (dateFilter === "mes") {
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    return recordDate >= startOfMonth && recordDate < endOfMonth;
+  }
+  if (dateFilter === "rango") {
+    if (dateRangeFrom) {
+      const from = new Date(dateRangeFrom);
+      if (!isNaN(from.getTime()) && recordDate < from) return false;
+    }
+    if (dateRangeTo) {
+      const to = new Date(dateRangeTo);
+      to.setHours(23, 59, 59, 999);
+      if (!isNaN(to.getTime()) && recordDate > to) return false;
+    }
+    return true;
+  }
+  return true;
 }
 
 function findRecordByOt(records, ot) {
