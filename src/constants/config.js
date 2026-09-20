@@ -12,9 +12,9 @@ function storedValue(name) {
 
 export const CONFIG = {
   google: {
-    clientId: envValue("VITE_GOOGLE_CLIENT_ID") || "430755535599-ft2t4udj42rh87d5opg61embb475dmqp.apps.googleusercontent.com",
+    clientId: envValue("VITE_GOOGLE_CLIENT_ID") || "1050209827786-2nr19kh51g7b2vl08jdeh0vp51gmhn4k.apps.googleusercontent.com",
     clientSecret: envValue("VITE_GOOGLE_CLIENT_SECRET"),
-    projectId: envValue("VITE_GOOGLE_PROJECT_ID") || "travel-463105",
+    projectId: envValue("VITE_GOOGLE_PROJECT_ID") || "triturados-509020",
     apiKey: envValue("VITE_GOOGLE_API_KEY"),
     scopes: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send",
   },
