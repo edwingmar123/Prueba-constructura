@@ -1133,12 +1133,13 @@ function isFinancialSummarySourceRecord(record) {
 }
 
 function buildOtReportPayload(otRecord, sourceRecords, financialRecord = otRecord, sourceRecordIndexes = null) {
-  const ot = getRecordOt(otRecord) || "NO ESPECIFICADO";
-  const workOrderRecord = findWorkOrderRecord(sourceRecords, ot, sourceRecordIndexes) || otRecord;
+  const rawOt = getRecordOt(otRecord);
+  const ot = rawOt || "NO ESPECIFICADO";
+  const workOrderRecord = rawOt ? (findWorkOrderRecord(sourceRecords, rawOt, sourceRecordIndexes) || otRecord) : otRecord;
   const resumenFinanciero = recordToObject(financialRecord);
   const datosGeneralesOT = recordToObject(otRecord);
   const datosOrdenTrabajoTYC = buildWorkOrderDetailObject(workOrderRecord);
-  const matrixRecords = getRelatedMatrixRecords(sourceRecords, ot, sourceRecordIndexes);
+  const matrixRecords = rawOt ? getRelatedMatrixRecords(sourceRecords, rawOt, sourceRecordIndexes) : [];
   const valorCompraAgregarTotal = sumMatrixPurchaseValue(matrixRecords);
   const solicitudesPedido = matrixRecords.map(buildSpReportItem);
   const ordenesCompra = [...new Set(solicitudesPedido.map((sp) => sp.ordenCompra).filter((value) => value && value !== "NO ESPECIFICADO"))].sort();
@@ -1340,6 +1341,7 @@ function findFinancialReportTarget(record, sourceRecords, sourceRecordIndexes = 
       rowNumber: record.rowNumber,
     };
   }
+  if (!currentOt) return null;
   const indexedFinancialRecord = sourceRecordIndexes?.financialByOt?.get(normalizeOtKey(currentOt));
   if (indexedFinancialRecord) {
     return { record: indexedFinancialRecord, spreadsheetId: FINANCIAL_SUMMARY_SPREADSHEET_ID, rowNumber: indexedFinancialRecord.rowNumber };
@@ -1415,7 +1417,7 @@ function isTargetRecord(record) {
 }
 
 function getRecordOt(record) {
-  return String(getCell(record, ["OT"]) || record.normalized?.work_order || "").trim();
+  return String(getCell(record, ["OT"]) || "").trim();
 }
 
 function getRecordStatusForFilter(record) {
