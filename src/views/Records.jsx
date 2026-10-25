@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from "react";
 import { CONFIG } from "../constants/config.js";
-import { columnName, createId, extractSpreadsheetId, normalizeText } from "../utils/helpers.js";
+import { columnName, createId, extractSpreadsheetId, normalizeText, parseDate } from "../utils/helpers.js";
 import {
   updateSheetRow,
   updateSheetCell,
@@ -1426,21 +1426,9 @@ function getRecordDate(record) {
   return String(getCell(record, [], ["marca temporal", "fecha"]) || "").trim();
 }
 
-function parseRecordDate(rawDate) {
-  if (!rawDate) return null;
-  const direct = new Date(rawDate);
-  if (!isNaN(direct.getTime())) return direct;
-  const ddmmyyyy = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (ddmmyyyy) {
-    const parsed = new Date(`${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, "0")}-${ddmmyyyy[1].padStart(2, "0")}`);
-    if (!isNaN(parsed.getTime())) return parsed;
-  }
-  return null;
-}
-
 function filterRecordByDate(record, dateFilter, dateRangeFrom, dateRangeTo) {
   if (!dateFilter) return true;
-  const recordDate = parseRecordDate(getRecordDate(record));
+  const recordDate = parseDate(getRecordDate(record));
   if (!recordDate) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
